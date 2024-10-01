@@ -259,7 +259,39 @@ app.patch("/clubs/:clubId/addUser", async (req, res) => {
   }
 });
 
+app.get('/clubs/:clubId', async (req, res) => {
+  const { clubId } = req.params;
+
+  try {
+    const club = await clubsCollection.findOne({ _id: new ObjectId(clubId) });
+    if (!club) {
+      return res.status(404).send({ message: "Club non trouvé." });
+    }
+    res.send(club);
+  } catch (err) {
+    console.error("Erreur lors de la récupération du club:", err);
+    res.status(500).send({ message: "Erreur interne du serveur." });
+  }
+});
+
+// Route pour récupérer les informations d'un utilisateur par ID
+app.get("/users/:userId", async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
+    if (!user) {
+      return res.status(404).send({ message: "Utilisateur non trouvé" });
+    }
+    res.send(user);
+  } catch (error) {
+    console.error("Erreur lors de la récupération de l'utilisateur:", error);
+    res.status(500).send({ message: "Erreur interne du serveur" });
+  }
+});
+
   app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}/`);
   });
+
 });
