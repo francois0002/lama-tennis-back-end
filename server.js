@@ -1,13 +1,13 @@
 const express = require("express");
 const cors = require("cors");
-const { MongoClient } = require("mongodb");
+const { MongoClient, ObjectId} = require("mongodb");
 const jwt = require("jsonwebtoken");
 
 const app = express();
 const port = 3000;
 const uri = "mongodb://localhost:27017";
 const dbName = "lama_tennis"; // Assurez-vous que ce nom correspond à la base de données que vous utilisez
-let db, clubsCollection;
+let db, clubsCollection, usersCollection;
 
 // Secret key (use a secure key in production)
 const SECRET_KEY = "vtestkey";
@@ -159,7 +159,7 @@ connectToDatabase().then(() => {
 
       //find email in database
 
-      const token = jwt.sign({ id: "user.id", username: email }, SECRET_KEY, {
+      const token = jwt.sign({ id: user._id, username: email }, SECRET_KEY, {
         expiresIn: "1h", // Le token expirera dans 1 heure
       });
 
@@ -169,6 +169,95 @@ connectToDatabase().then(() => {
       res.status(500).json({ message: "Erreur interne du serveur" });
     }
   });
+
+  // Route pour vérifier si un email existe déjà dans la base de données
+  app.post("/api/check-email", async (req, res) => {
+    const { email } = req.body;
+
+    // Vérification si l'email est fourni
+    if (!email) {
+      return res.status(400).send({ message: "L'email est requis." });
+    }
+
+    try {
+      // Rechercher si l'email existe déjà dans la collection 'users'
+      const existingUser = await usersCollection.findOne({ email: email });
+
+      // Si l'email est trouvé, retourner un message d'erreur
+      if (existingUser) {
+        return res.status(400).send({ message: "Cet email est déjà utilisé." });
+      }
+
+      // Si l'email n'existe pas, renvoyer un statut 200 pour indiquer qu'il est disponible
+      res.status(200).send({ message: "Email disponible." });
+    } catch (error) {
+      console.error(
+        "Erreur lors de la vérification de l'email:",
+        error.message
+      );
+      res.status(500).send({ message: "Erreur interne du serveur." });
+    }
+  });
+
+  // Nouvelle route pour mettre à jour un utilisateur
+  app.patch("/users/:userId", async (req, res) => {
+    const { userId } = req.params;
+    const { club } = req.body;
+
+    if (!club) {
+      return res.status(400).send({ message: "Le club est requis." });
+    }
+
+    try {
+      const updatedUser = await usersCollection.findOneAndUpdate(
+        { _id: new ObjectId(userId) },
+        { $set: { club } },
+        { returnDocument: "after" }
+      );
+
+      console.log(updatedUser);
+
+
+      res.send(updatedUser.value);
+    } catch (err) {
+      console.error("Erreur lors de la mise à jour de l'utilisateur:", err);
+      res
+        .status(500)
+        .send({ message: "Erreur lors de la mise à jour de l'utilisateur." });
+    }
+  });
+
+  // Route pour ajouter un utilisateur au club
+app.patch("/clubs/:clubId/addUser", async (req, res) => {
+
+  console.log("Requête reçue avec body:", req.body);
+  const { clubId } = req.params;
+  console.log(`Tentative d'ajout d'un utilisateur au club avec ID: ${clubId}`);
+  const { userId } = req.body;
+  console.log("User ID reçu:", userId);
+
+  if (!userId) {
+    return res.status(400).send({ message: "L'ID de l'utilisateur est requis." });
+  }
+
+  try {
+    // Mettre à jour le club en ajoutant l'utilisateur dans le tableau userIds
+    console.log(`Tentative d'ajout d'un utilisateur au club avec ID: ${clubId}`)
+    const updatedClub = await clubsCollection.findOneAndUpdate(
+      { _id: new ObjectId(clubId) },
+      { $addToSet: { userIds: userId } }, // Utilisez $addToSet pour éviter les doublons
+      { returnDocument: "after" }
+    );
+
+
+
+    console.log("Club mis à jour:", updatedClub.value);
+    res.send(updatedClub.value);
+  } catch (err) {
+    console.error("Erreur lors de la mise à jour du club:", err);
+    res.status(500).send({ message: "Erreur lors de la mise à jour du club." });
+  }
+});
 
   app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}/`);
