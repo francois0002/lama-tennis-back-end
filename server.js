@@ -204,8 +204,8 @@ connectToDatabase().then(() => {
     const { userId } = req.params;
     const { club } = req.body;
 
-    if (!club) {
-      return res.status(400).send({ message: "Le club est requis." });
+    if (club === undefined) {
+      return res.status(400).send({ message: "Le champ 'club' est requis." });
     }
 
     try {
@@ -289,6 +289,30 @@ app.get("/users/:userId", async (req, res) => {
     res.status(500).send({ message: "Erreur interne du serveur" });
   }
 });
+
+// route pour supprimer un utilisateur du club
+app.patch('/clubs/:clubId/removeUser', async (req, res) => {
+  const { clubId } = req.params;
+  const { userId } = req.body;
+  console.log(`Recherche du club avec ID: ${clubId}`);
+
+  try {
+    const club = await clubsCollection.findOneAndUpdate(
+      { _id: new ObjectId(clubId) },
+      { $pull: { userIds: userId } }, // Supprime l'utilisateur de la liste userIds
+      { returnDocument: 'after' }
+    );
+
+
+
+    console.log(`Utilisateur ${userId} supprimé du club ${clubId}`);
+    res.send(club.value);
+  } catch (err) {
+    console.error("Erreur lors de la suppression de l'utilisateur du club:", err);
+    res.status(500).send({ message: "Erreur lors de la suppression de l'utilisateur du club." });
+  }
+});
+
 
   app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}/`);
