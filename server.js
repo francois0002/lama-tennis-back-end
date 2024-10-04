@@ -4,6 +4,7 @@ const { MongoClient, ObjectId} = require("mongodb");
 const jwt = require("jsonwebtoken");
 
 const app = express();
+const nodemailer = require('nodemailer');
 const port = 3000;
 const uri = "mongodb://localhost:27017";
 const dbName = "lama_tennis"; // Assurez-vous que ce nom correspond à la base de données que vous utilisez
@@ -310,6 +311,39 @@ app.patch('/clubs/:clubId/removeUser', async (req, res) => {
   } catch (err) {
     console.error("Erreur lors de la suppression de l'utilisateur du club:", err);
     res.status(500).send({ message: "Erreur lors de la suppression de l'utilisateur du club." });
+  }
+});
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail', // Utilise Gmail comme service de messagerie
+  auth: {
+    user: "maclovin0002@gmail.com", // Remplace par ton email Gmail
+    pass: "dsfs bxbw xxwk apbc", // Remplace par le mot de passe ou un App Password
+  },
+});
+
+// Route pour envoyer l'e-mail
+app.post('/send-email', async (req, res) => {
+  console.log(process.env.EMAIL_USER,);
+  console.log(process.env.EMAIL_PASS,);
+  const { to, subject, text } = req.body;
+
+
+  // Options de l'email
+  const mailOptions = {
+    from:  process.env.EMAIL_USER,
+    to: 'francois.gosselin.lille@gmail.com', // Liste des destinataires séparés par des virgules
+    subject: subject,
+    text: text,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log('Email envoyé avec succès');
+    res.status(200).send({ message: 'Emails envoyés avec succès' });
+  } catch (error) {
+    console.error('Erreur lors de l\'envoi des emails:', error);
+    res.status(500).send({ message: 'Erreur lors de l\'envoi des emails' });
   }
 });
 
