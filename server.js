@@ -228,6 +228,8 @@ connectToDatabase().then(() => {
     }
   });
 
+
+
   // Route pour ajouter un utilisateur au club
 app.patch("/clubs/:clubId/addUser", async (req, res) => {
 
@@ -318,21 +320,28 @@ const transporter = nodemailer.createTransport({
   service: 'gmail', // Utilise Gmail comme service de messagerie
   auth: {
     user: "maclovin0002@gmail.com", // Remplace par ton email Gmail
-    pass: "dsfs bxbw xxwk apbc", // Remplace par le mot de passe ou un App Password
+    pass: "skzk rgcc xvpq azug", // Remplace par le mot de passe ou un App Password
   },
 });
 
 // Route pour envoyer l'e-mail
 app.post('/send-email', async (req, res) => {
-  console.log(process.env.EMAIL_USER,);
-  console.log(process.env.EMAIL_PASS,);
   const { to, subject, text } = req.body;
 
+  // Vérifier si 'to' est un tableau ou une chaîne
+  let recipientList;
+  if (Array.isArray(to)) {
+      recipientList = to.join(','); // Concaténer les adresses email
+  } else if (typeof to === 'string') {
+      recipientList = to; // Utiliser directement si c'est une seule adresse
+  } else {
+      return res.status(400).send({ message: 'Le champ "to" doit être un tableau ou une chaîne.' });
+  }
 
   // Options de l'email
   const mailOptions = {
     from:  process.env.EMAIL_USER,
-    to: 'francois.gosselin.lille@gmail.com', // Liste des destinataires séparés par des virgules
+    to: recipientList, // Liste des destinataires séparés par des virgules
     subject: subject,
     text: text,
   };
@@ -346,6 +355,56 @@ app.post('/send-email', async (req, res) => {
     res.status(500).send({ message: 'Erreur lors de l\'envoi des emails' });
   }
 });
+
+app.patch("/users/:userId/updatePersonalInfo", async (req, res) => {
+  const { userId } = req.params;
+  const { firstName, lastName, email, phoneNumber } = req.body;
+
+  if (!firstName || !lastName || !email || !phoneNumber) {
+    return res.status(400).send({ message: "Tous les champs sont requis." });
+  }
+
+  try {
+    const updatedUser = await usersCollection.findOneAndUpdate(
+      { _id: new ObjectId(userId) },
+      {
+        $set: {
+          firstName: firstName,
+          lastName: lastName,
+          email: email,
+          phoneNumber: phoneNumber,
+        },
+      },
+      { returnDocument: "after" }
+    );
+
+
+    res.send(updatedUser.value);
+  } catch (err) {
+    console.error("Erreur lors de la mise à jour des informations personnelles:", err);
+    res.status(500).send({ message: "Erreur lors de la mise à jour des informations personnelles." });
+  }
+});
+
+// Route pour mettre à jour les informations tennis de l'utilisateur
+app.patch("/users/:userId/updateTennisInfo", async (req, res) => {
+  const { userId } = req.params;
+  const { level, ranking, club } = req.body;
+
+  try {
+    const updatedUser = await usersCollection.findOneAndUpdate(
+      { _id: new ObjectId(userId) },
+      { $set: { level, ranking, club } }, // Met à jour les informations tennis
+      { returnDocument: "after" }
+    );
+
+    res.send(updatedUser.value);
+  } catch (err) {
+    console.error("Erreur lors de la mise à jour des informations tennis:", err);
+    res.status(500).send({ message: "Erreur lors de la mise à jour des informations tennis." });
+  }
+});
+
 
 
   app.listen(port, () => {
