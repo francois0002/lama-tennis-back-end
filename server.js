@@ -1,10 +1,10 @@
 const express = require("express");
 const cors = require("cors");
-const { MongoClient, ObjectId} = require("mongodb");
+const { MongoClient, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
 
 const app = express();
-const nodemailer = require('nodemailer');
+const nodemailer = require("nodemailer");
 const port = 3000;
 const uri = "mongodb://localhost:27017";
 const dbName = "lama_tennis"; // Assurez-vous que ce nom correspond à la base de données que vous utilisez
@@ -218,7 +218,6 @@ connectToDatabase().then(() => {
 
       console.log(updatedUser);
 
-
       res.send(updatedUser.value);
     } catch (err) {
       console.error("Erreur lors de la mise à jour de l'utilisateur:", err);
@@ -228,187 +227,269 @@ connectToDatabase().then(() => {
     }
   });
 
-
-
   // Route pour ajouter un utilisateur au club
-app.patch("/clubs/:clubId/addUser", async (req, res) => {
-
-  console.log("Requête reçue avec body:", req.body);
-  const { clubId } = req.params;
-  console.log(`Tentative d'ajout d'un utilisateur au club avec ID: ${clubId}`);
-  const { userId } = req.body;
-  console.log("User ID reçu:", userId);
-
-  if (!userId) {
-    return res.status(400).send({ message: "L'ID de l'utilisateur est requis." });
-  }
-
-  try {
-    // Mettre à jour le club en ajoutant l'utilisateur dans le tableau userIds
-    console.log(`Tentative d'ajout d'un utilisateur au club avec ID: ${clubId}`)
-    const updatedClub = await clubsCollection.findOneAndUpdate(
-      { _id: new ObjectId(clubId) },
-      { $addToSet: { userIds: userId } }, // Utilisez $addToSet pour éviter les doublons
-      { returnDocument: "after" }
+  app.patch("/clubs/:clubId/addUser", async (req, res) => {
+    console.log("Requête reçue avec body:", req.body);
+    const { clubId } = req.params;
+    console.log(
+      `Tentative d'ajout d'un utilisateur au club avec ID: ${clubId}`
     );
+    const { userId } = req.body;
+    console.log("User ID reçu:", userId);
 
-
-
-    console.log("Club mis à jour:", updatedClub.value);
-    res.send(updatedClub.value);
-  } catch (err) {
-    console.error("Erreur lors de la mise à jour du club:", err);
-    res.status(500).send({ message: "Erreur lors de la mise à jour du club." });
-  }
-});
-
-app.get('/clubs/:clubId', async (req, res) => {
-  const { clubId } = req.params;
-
-  try {
-    const club = await clubsCollection.findOne({ _id: new ObjectId(clubId) });
-    if (!club) {
-      return res.status(404).send({ message: "Club non trouvé." });
+    if (!userId) {
+      return res
+        .status(400)
+        .send({ message: "L'ID de l'utilisateur est requis." });
     }
-    res.send(club);
-  } catch (err) {
-    console.error("Erreur lors de la récupération du club:", err);
-    res.status(500).send({ message: "Erreur interne du serveur." });
-  }
-});
 
-// Route pour récupérer les informations d'un utilisateur par ID
-app.get("/users/:userId", async (req, res) => {
-  const { userId } = req.params;
+    try {
+      // Mettre à jour le club en ajoutant l'utilisateur dans le tableau userIds
+      console.log(
+        `Tentative d'ajout d'un utilisateur au club avec ID: ${clubId}`
+      );
+      const updatedClub = await clubsCollection.findOneAndUpdate(
+        { _id: new ObjectId(clubId) },
+        { $addToSet: { userIds: userId } }, // Utilisez $addToSet pour éviter les doublons
+        { returnDocument: "after" }
+      );
 
-  try {
-    const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
-    if (!user) {
-      return res.status(404).send({ message: "Utilisateur non trouvé" });
+      console.log("Club mis à jour:", updatedClub.value);
+      res.send(updatedClub.value);
+    } catch (err) {
+      console.error("Erreur lors de la mise à jour du club:", err);
+      res
+        .status(500)
+        .send({ message: "Erreur lors de la mise à jour du club." });
     }
-    res.send(user);
-  } catch (error) {
-    console.error("Erreur lors de la récupération de l'utilisateur:", error);
-    res.status(500).send({ message: "Erreur interne du serveur" });
-  }
-});
+  });
 
-// route pour supprimer un utilisateur du club
-app.patch('/clubs/:clubId/removeUser', async (req, res) => {
-  const { clubId } = req.params;
-  const { userId } = req.body;
-  console.log(`Recherche du club avec ID: ${clubId}`);
+  app.get("/clubs/:clubId", async (req, res) => {
+    const { clubId } = req.params;
 
-  try {
-    const club = await clubsCollection.findOneAndUpdate(
-      { _id: new ObjectId(clubId) },
-      { $pull: { userIds: userId } }, // Supprime l'utilisateur de la liste userIds
-      { returnDocument: 'after' }
-    );
+    try {
+      const club = await clubsCollection.findOne({ _id: new ObjectId(clubId) });
+      if (!club) {
+        return res.status(404).send({ message: "Club non trouvé." });
+      }
+      res.send(club);
+    } catch (err) {
+      console.error("Erreur lors de la récupération du club:", err);
+      res.status(500).send({ message: "Erreur interne du serveur." });
+    }
+  });
 
+  // Route pour récupérer les informations d'un utilisateur par ID
+  app.get("/users/:userId", async (req, res) => {
+    const { userId } = req.params;
 
+    try {
+      const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
+      if (!user) {
+        return res.status(404).send({ message: "Utilisateur non trouvé" });
+      }
+      res.send(user);
+    } catch (error) {
+      console.error("Erreur lors de la récupération de l'utilisateur:", error);
+      res.status(500).send({ message: "Erreur interne du serveur" });
+    }
+  });
 
-    console.log(`Utilisateur ${userId} supprimé du club ${clubId}`);
-    res.send(club.value);
-  } catch (err) {
-    console.error("Erreur lors de la suppression de l'utilisateur du club:", err);
-    res.status(500).send({ message: "Erreur lors de la suppression de l'utilisateur du club." });
-  }
-});
+  // route pour supprimer un utilisateur du club
+  app.patch("/clubs/:clubId/removeUser", async (req, res) => {
+    const { clubId } = req.params;
+    const { userId } = req.body;
+    console.log(`Recherche du club avec ID: ${clubId}`);
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail', // Utilise Gmail comme service de messagerie
-  auth: {
-    user: "maclovin0002@gmail.com", // Remplace par ton email Gmail
-    pass: "skzk rgcc xvpq azug", // Remplace par le mot de passe ou un App Password
-  },
-});
+    try {
+      const club = await clubsCollection.findOneAndUpdate(
+        { _id: new ObjectId(clubId) },
+        { $pull: { userIds: userId } }, // Supprime l'utilisateur de la liste userIds
+        { returnDocument: "after" }
+      );
 
-// Route pour envoyer l'e-mail
-app.post('/send-email', async (req, res) => {
-  const { to, subject, text } = req.body;
+      console.log(`Utilisateur ${userId} supprimé du club ${clubId}`);
+      res.send(club.value);
+    } catch (err) {
+      console.error(
+        "Erreur lors de la suppression de l'utilisateur du club:",
+        err
+      );
+      res
+        .status(500)
+        .send({
+          message: "Erreur lors de la suppression de l'utilisateur du club.",
+        });
+    }
+  });
 
-  // Vérifier si 'to' est un tableau ou une chaîne
-  let recipientList;
-  if (Array.isArray(to)) {
-      recipientList = to.join(','); // Concaténer les adresses email
-  } else if (typeof to === 'string') {
+  const transporter = nodemailer.createTransport({
+    service: "gmail", // Utilise Gmail comme service de messagerie
+    auth: {
+      user: "maclovin0002@gmail.com", // Remplace par ton email Gmail
+      pass: "skzk rgcc xvpq azug", // Remplace par le mot de passe ou un App Password
+    },
+  });
+
+  // Route pour envoyer l'e-mail
+  app.post("/send-email", async (req, res) => {
+    const { to, subject, text } = req.body;
+
+    // Vérifier si 'to' est un tableau ou une chaîne
+    let recipientList;
+    if (Array.isArray(to)) {
+      recipientList = to.join(","); // Concaténer les adresses email
+    } else if (typeof to === "string") {
       recipientList = to; // Utiliser directement si c'est une seule adresse
-  } else {
-      return res.status(400).send({ message: 'Le champ "to" doit être un tableau ou une chaîne.' });
-  }
+    } else {
+      return res
+        .status(400)
+        .send({ message: 'Le champ "to" doit être un tableau ou une chaîne.' });
+    }
 
-  // Options de l'email
-  const mailOptions = {
-    from:  process.env.EMAIL_USER,
-    to: recipientList, // Liste des destinataires séparés par des virgules
-    subject: subject,
-    text: text,
-  };
+    // Options de l'email
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: recipientList, // Liste des destinataires séparés par des virgules
+      subject: subject,
+      text: text,
+    };
 
-  try {
-    await transporter.sendMail(mailOptions);
-    console.log('Email envoyé avec succès');
-    res.status(200).send({ message: 'Emails envoyés avec succès' });
-  } catch (error) {
-    console.error('Erreur lors de l\'envoi des emails:', error);
-    res.status(500).send({ message: 'Erreur lors de l\'envoi des emails' });
-  }
-});
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log("Email envoyé avec succès");
+      res.status(200).send({ message: "Emails envoyés avec succès" });
+    } catch (error) {
+      console.error("Erreur lors de l'envoi des emails:", error);
+      res.status(500).send({ message: "Erreur lors de l'envoi des emails" });
+    }
+  });
 
-app.patch("/users/:userId/updatePersonalInfo", async (req, res) => {
-  const { userId } = req.params;
-  const { firstName, lastName, email, phoneNumber } = req.body;
+  app.patch("/users/:userId/updatePersonalInfo", async (req, res) => {
+    const { userId } = req.params;
+    const { firstName, lastName, email, phoneNumber } = req.body;
 
-  if (!firstName || !lastName || !email || !phoneNumber) {
-    return res.status(400).send({ message: "Tous les champs sont requis." });
-  }
+    if (!firstName || !lastName || !email || !phoneNumber) {
+      return res.status(400).send({ message: "Tous les champs sont requis." });
+    }
 
-  try {
-    const updatedUser = await usersCollection.findOneAndUpdate(
-      { _id: new ObjectId(userId) },
-      {
-        $set: {
-          firstName: firstName,
-          lastName: lastName,
-          email: email,
-          phoneNumber: phoneNumber,
+    try {
+      const updatedUser = await usersCollection.findOneAndUpdate(
+        { _id: new ObjectId(userId) },
+        {
+          $set: {
+            firstName: firstName,
+            lastName: lastName,
+            email: email,
+            phoneNumber: phoneNumber,
+          },
         },
-      },
-      { returnDocument: "after" }
-    );
+        { returnDocument: "after" }
+      );
 
+      res.send(updatedUser.value);
+    } catch (err) {
+      console.error(
+        "Erreur lors de la mise à jour des informations personnelles:",
+        err
+      );
+      res
+        .status(500)
+        .send({
+          message:
+            "Erreur lors de la mise à jour des informations personnelles.",
+        });
+    }
+  });
 
-    res.send(updatedUser.value);
-  } catch (err) {
-    console.error("Erreur lors de la mise à jour des informations personnelles:", err);
-    res.status(500).send({ message: "Erreur lors de la mise à jour des informations personnelles." });
-  }
-});
+  // Route pour mettre à jour les informations tennis de l'utilisateur
+  app.patch("/users/:userId/updateTennisInfo", async (req, res) => {
+    const { userId } = req.params;
+    const { level, ranking, club } = req.body;
 
-// Route pour mettre à jour les informations tennis de l'utilisateur
-app.patch("/users/:userId/updateTennisInfo", async (req, res) => {
-  const { userId } = req.params;
-  const { level, ranking, club } = req.body;
+    try {
+      const updatedUser = await usersCollection.findOneAndUpdate(
+        { _id: new ObjectId(userId) },
+        { $set: { level, ranking, club } }, // Met à jour les informations tennis
+        { returnDocument: "after" }
+      );
 
-  try {
-    const updatedUser = await usersCollection.findOneAndUpdate(
-      { _id: new ObjectId(userId) },
-      { $set: { level, ranking, club } }, // Met à jour les informations tennis
-      { returnDocument: "after" }
-    );
+      res.send(updatedUser.value);
+    } catch (err) {
+      console.error(
+        "Erreur lors de la mise à jour des informations tennis:",
+        err
+      );
+      res
+        .status(500)
+        .send({
+          message: "Erreur lors de la mise à jour des informations tennis.",
+        });
+    }
+  });
 
-    res.send(updatedUser.value);
-  } catch (err) {
-    console.error("Erreur lors de la mise à jour des informations tennis:", err);
-    res.status(500).send({ message: "Erreur lors de la mise à jour des informations tennis." });
-  }
-});
+  app.delete("/users/:userId", async (req, res) => {
+    const { userId } = req.params;
 
+    try {
+      // Récupérer l'utilisateur pour savoir à quel club il est associé
+      const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
 
+      if (!user) {
+        return res.status(404).send({ message: "Utilisateur non trouvé." });
+      }
+
+      // Retirer l'ID de l'utilisateur du club
+      await clubsCollection.updateOne(
+        { _id: new ObjectId(user.club) },
+        { $pull: { userIds: userId } }
+      );
+
+      // Supprimer l'utilisateur
+      await usersCollection.deleteOne({ _id: new ObjectId(userId) });
+
+      res.send({ message: "Utilisateur supprimé avec succès." });
+    } catch (err) {
+      console.error("Erreur lors de la suppression de l'utilisateur:", err);
+      res
+        .status(500)
+        .send({ message: "Erreur lors de la suppression de l'utilisateur." });
+    }
+  });
+
+  app.post("/matchs", async (req, res) => {
+    const { player1_id, player2_id, score, winner_id } = req.body;
+
+    // Vérification des données envoyées
+    if (!player1_id || !player2_id || !score || !winner_id) {
+      return res.status(400).json({
+        message: "Tous les champs (player1_id, player2_id, score, winner_id) sont requis.",
+      });
+    }
+
+    try {
+      const match = {
+        player1_id: new ObjectId(player1_id),
+        player2_id: new ObjectId(player2_id),
+        score,
+        winner_id: new ObjectId(winner_id),
+        date_add: new Date(),
+      };
+
+      // Insérer le match dans la collection 'matchs'
+      const result = await db.collection("matchs").insertOne(match);
+
+      res.status(201).json({
+        message: "Match enregistré avec succès",
+        matchId: result.insertedId,
+      });
+    } catch (error) {
+      console.error("Erreur lors de l'enregistrement du match:", error);
+      res.status(500).json({ message: "Erreur lors de l'enregistrement du match." });
+    }
+  });
 
   app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}/`);
   });
-
 });
