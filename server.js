@@ -489,6 +489,123 @@ connectToDatabase().then(() => {
     }
   });
 
+// Route pour récupérer les statistiques d'un joueur
+app.get("/matchs/user/:userId", async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+      // Récupérer tous les matchs joués par le joueur
+      const matchesPlayed = await db.collection("matchs").find({
+          $or: [
+              { player1_id: new ObjectId(userId) },
+              { player2_id: new ObjectId(userId) }
+          ]
+      }).toArray();
+
+      const totalMatches = matchesPlayed.length; // Nombre total de matchs joués
+      let wins = 0; // Nombre de victoires
+      let losses = 0; // Nombre de défaites
+      let winStreak = 0; // Nombre de victoires consécutives
+      let bestWinStreak = 0; // Meilleure série de victoires
+
+      // Calculer les victoires et les défaites
+      matchesPlayed.forEach(match => {
+          if (match.winner_id.toString() === userId) {
+              wins++;
+          } else {
+              losses++;
+          }
+      });
+
+      // Trier les matchs par date
+      const sortedMatches = matchesPlayed.sort((a, b) => new Date(a.date_add) - new Date(b.date_add));
+
+      // Calculer le nombre de victoires consécutives et la meilleure série de victoires
+      let currentStreak = 0; // Compteur pour la série actuelle
+
+      for (let i = 0; i < sortedMatches.length; i++) {
+          if (sortedMatches[i].winner_id.toString() === userId) {
+              currentStreak++;
+              if (currentStreak > bestWinStreak) {
+                  bestWinStreak = currentStreak; // Mettre à jour la meilleure série
+              }
+          } else {
+              currentStreak = 0; // Réinitialiser si une défaite est rencontrée
+          }
+      }
+
+      // Calculer les victoires consécutives à la fin
+      for (let i = sortedMatches.length - 1; i >= 0; i--) {
+          if (sortedMatches[i].winner_id.toString() === userId) {
+              winStreak++;
+          } else {
+              break; // On sort de la boucle dès qu'une défaite est trouvée
+          }
+      }
+
+      res.status(200).json({
+          totalMatches,
+          wins,
+          losses,
+          winStreak, // Ajout de winStreak au retour
+          bestWinStreak, // Ajout de bestWinStreak au retour
+      });
+  } catch (error) {
+      console.error("Erreur lors de la récupération des statistiques:", error);
+      res.status(500).json({ message: "Erreur lors de la récupération des statistiques." });
+  }
+});
+
+
+app.get("/matchs/user/:userId/history", async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    // Récupérer tous les matchs joués par l'utilisateur
+    const matchesPlayed = await db.collection("matchs").find({
+      $or: [
+        { player1_id: new ObjectId(userId) },
+        { player2_id: new ObjectId(userId) }
+      ]
+    }).toArray();
+
+    // Si aucun match trouvé
+    if (matchesPlayed.length === 0) {
+      return res.status(404).json({ message: "Aucun match trouvé pour cet utilisateur." });
+    }
+
+    // Traiter chaque match pour obtenir les informations de l'historique
+    const matchHistory = await Promise.all(matchesPlayed.map(async (match) => {
+      // Identifier l'adversaire
+      const opponentId = match.player1_id.toString() === userId ? match.player2_id : match.player1_id;
+      const opponent = await db.collection("users").findOne({ _id: new ObjectId(opponentId) });
+
+      // Déterminer si l'utilisateur a gagné ou perdu
+      const isWin = match.winner_id.toString() === userId;
+      const result = isWin ? "Victoire" : "Défaite";
+
+      // Construire l'objet historique du match
+      return {
+        date: match.date_add,
+        score: match.score,
+        opponent: {
+          id: opponent._id,
+          name: `${opponent.firstName} ${opponent.lastName}`, // Supposons que l'utilisateur ait firstName et lastName
+        },
+        result: result
+      };
+    }));
+
+    // Retourner l'historique des matchs
+    res.status(200).json(matchHistory);
+  } catch (error) {
+    console.error("Erreur lors de la récupération de l'historique des matchs:", error);
+    res.status(500).json({ message: "Erreur lors de la récupération de l'historique des matchs." });
+  }
+});
+
+
+
   app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}/`);
   });
