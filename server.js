@@ -120,8 +120,10 @@ connectToDatabase().then(() => {
     try {
       await client.connect();
       const database = client.db(dbName);
-      const collection = database.collection("users");
+      const usersCollection = database.collection("users");
+      const trophiesCollection = database.collection("trophies"); // Ajout de la collection des trophées
 
+      // Créer un nouvel utilisateur
       const newUser = {
         email,
         password,
@@ -130,8 +132,19 @@ connectToDatabase().then(() => {
         phoneNumber,
         level,
         ranking,
+        trophies: [], // Ajouter un tableau vide pour les trophées
       };
-      await collection.insertOne(newUser);
+
+      const result = await usersCollection.insertOne(newUser);
+
+      // Créer un document de trophée lié à cet utilisateur
+      const trophyDocument = {
+        userId: result.insertedId, // Utilisez l'ID de l'utilisateur nouvellement créé
+        trophies: [], // Liste des trophées, vide par défaut
+      };
+
+      await trophiesCollection.insertOne(trophyDocument); // Insérer le document de trophée
+
       res.status(201).send({ message: "Inscription réussie" });
     } catch (error) {
       console.error(error);
@@ -603,6 +616,42 @@ app.get("/matchs/user/:userId/history", async (req, res) => {
     res.status(500).json({ message: "Erreur lors de la récupération de l'historique des matchs." });
   }
 });
+
+app.get("/trophies/check/:userId", async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    // Récupérer les matchs joués par l'utilisateur
+    const matchesPlayed = await db.collection("matchs").find({
+      $or: [
+        { player1_id: new ObjectId(userId) },
+        { player2_id: new ObjectId(userId) }
+      ]
+    }).toArray();
+
+    // Vérifier si l'utilisateur a gagné au moins 1 match
+    const wins = matchesPlayed.filter(match => match.winner_id.toString() === userId).length;
+
+    // Vérifier si l'utilisateur a déjà le trophée
+    const user = await db.collection("users").findOne({ _id: new ObjectId(userId) });
+
+    if (wins >= 1 && user && !user.trophies.includes("Gagner 1 match")) {
+      // Si l'utilisateur a gagné au moins 1 match et n'a pas le trophée, on met à jour le tableau des trophées
+      await db.collection("users").updateOne(
+        { _id: new ObjectId(userId) },
+        { $push: { trophies: "Gagner 1 match" } }
+      );
+
+      return res.status(200).json({ message: "Trophée gagné : Gagner 1 match" });
+    }
+
+    res.status(200).json({ message: "Trophée non gagné ou déjà acquis" });
+  } catch (error) {
+    console.error("Erreur lors de la vérification du trophée:", error);
+    res.status(500).json({ message: "Erreur interne du serveur." });
+  }
+});
+
 
 
 
