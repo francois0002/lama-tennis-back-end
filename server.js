@@ -121,7 +121,7 @@ connectToDatabase().then(() => {
       await client.connect();
       const database = client.db(dbName);
       const usersCollection = database.collection("users");
-      const trophiesCollection = database.collection("trophies"); // Ajout de la collection des trophées
+
 
       // Créer un nouvel utilisateur
       const newUser = {
@@ -137,13 +137,7 @@ connectToDatabase().then(() => {
 
       const result = await usersCollection.insertOne(newUser);
 
-      // Créer un document de trophée lié à cet utilisateur
-      const trophyDocument = {
-        userId: result.insertedId, // Utilisez l'ID de l'utilisateur nouvellement créé
-        trophies: [], // Liste des trophées, vide par défaut
-      };
 
-      await trophiesCollection.insertOne(trophyDocument); // Insérer le document de trophée
 
       res.status(201).send({ message: "Inscription réussie" });
     } catch (error) {
@@ -627,7 +621,7 @@ app.get("/trophies/check/:userId", async (req, res) => {
         { player1_id: new ObjectId(userId) },
         { player2_id: new ObjectId(userId) }
       ]
-    }).toArray();
+    }).sort({ date_add: 1 }).toArray(); // Trier par date pour vérifier les victoires consécutives
 
     // Calculer le nombre de victoires de l'utilisateur
     const wins = matchesPlayed.filter(match => match.winner_id.toString() === userId).length;
@@ -678,6 +672,20 @@ app.get("/trophies/check/:userId", async (req, res) => {
         newTrophies.push(trophy.id);
       }
     });
+
+    // Vérification pour le trophée de 3 victoires consécutives
+    let consecutiveWins = 0;
+    for (let i = 0; i < matchesPlayed.length; i++) {
+      if (matchesPlayed[i].winner_id.toString() === userId) {
+        consecutiveWins++;
+        if (consecutiveWins === 3 && !user.trophies.includes("serie-3-victoires")) {
+          newTrophies.push("serie-3-victoires");
+          break;
+        }
+      } else {
+        consecutiveWins = 0; // Réinitialiser si l'utilisateur perd un match
+      }
+    }
 
     // Si l'utilisateur a gagné de nouveaux trophées, les ajouter
     if (newTrophies.length > 0) {
