@@ -638,31 +638,33 @@ app.get("/trophies/check/:userId", async (req, res) => {
 
     // Liste des trophées de victoires
     const winTrophies = [
-      { id: "1-victoire", name: "Soldat d'élite", threshold: 1 },
-      { id: "10-victoires", name: "Caporal en chef", threshold: 10 },
-      { id: "25-victoires", name: "Sergent Major", threshold: 25 },
-      { id: "50-victoires", name: "Adjudant du régiment", threshold: 50 },
-      { id: "75-victoires", name: "Capitaine d'escadron", threshold: 75 },
-      { id: "100-victoires", name: "Colonel des armées", threshold: 100 }
+      { id: "1-victoire", name: "Soldat d'élite", description: "Gagne un match", threshold: 1 },
+      { id: "10-victoires", name: "Caporal en chef", description: "Gagne 10 matchs", threshold: 10 },
+      { id: "25-victoires", name: "Sergent Major", description: "Gagne 25 matchs", threshold: 25 },
+      { id: "50-victoires", name: "Adjudant du régiment", description: "Gagne 50 matchs", threshold: 50 },
+      { id: "75-victoires", name: "Capitaine d'escadron", description: "Gagne 75 matchs", threshold: 75 },
+      { id: "100-victoires", name: "Colonel des armées", description: "Gagne 100 matchs", threshold: 100 }
     ];
 
     // Liste des trophées pour les matchs joués
     const matchTrophies = [
-      { id: "1-match", name: "Un petit pas de lama", threshold: 1 },
-      { id: "10-matchs", name: "Le lamastico", threshold: 10 },
-      { id: "25-matchs", name: "Le lamagique", threshold: 25 },
-      { id: "50-matchs", name: "Lamazing !", threshold: 50 },
-      { id: "75-matchs", name: "C'est un lamarathon", threshold: 75 },
-      { id: "100-matchs", name: "C'est un lamassacre", threshold: 100 }
+      { id: "1-match", name: "Un petit pas de lama", description: "Joue un match", threshold: 1 },
+      { id: "10-matchs", name: "Le lamastico", description: "Joue 10 matchs", threshold: 10 },
+      { id: "25-matchs", name: "Le lamagique", description: "Joue 25 matchs", threshold: 25 },
+      { id: "50-matchs", name: "Lamazing !", description: "Joue 50 matchs", threshold: 50 },
+      { id: "75-matchs", name: "C'est un lamarathon", description: "Joue 75 matchs", threshold: 75 },
+      { id: "100-matchs", name: "C'est un lamassacre", description: "Joue 100 matchs", threshold: 100 }
     ];
 
     // Initialiser un tableau pour stocker les nouveaux trophées à ajouter
     const newTrophies = [];
+    const trophiesWon = [];
 
     // Vérifier chaque trophée de victoire
     winTrophies.forEach(trophy => {
       if (wins >= trophy.threshold && !user.trophies.includes(trophy.id)) {
         newTrophies.push(trophy.id);
+        trophiesWon.push({ name: trophy.name, description: trophy.description }); // Ajouter le nom et la description
       }
     });
 
@@ -670,6 +672,7 @@ app.get("/trophies/check/:userId", async (req, res) => {
     matchTrophies.forEach(trophy => {
       if (totalMatchesPlayed >= trophy.threshold && !user.trophies.includes(trophy.id)) {
         newTrophies.push(trophy.id);
+        trophiesWon.push({ name: trophy.name, description: trophy.description }); // Ajouter le nom et la description
       }
     });
 
@@ -680,30 +683,59 @@ app.get("/trophies/check/:userId", async (req, res) => {
         consecutiveWins++;
         if (consecutiveWins === 3 && !user.trophies.includes("serie-3-victoires")) {
           newTrophies.push("serie-3-victoires");
+          trophiesWon.push({ name: "Série de 3 victoires", description: "Gagne 3 matchs consécutifs" }); // Ajouter le nom et la description
           break;
         }
       } else {
-        consecutiveWins = 0; // Réinitialiser si l'utilisateur perd un match
+        consecutiveWins = 0;
+         // Réinitialiser si l'utilisateur perd un match
       }
     }
 
     // Si l'utilisateur a gagné de nouveaux trophées, les ajouter
     if (newTrophies.length > 0) {
       await db.collection("users").updateOne(
-        { _id: new ObjectId(userId) },
-        { $push: { trophies: { $each: newTrophies } } }
+          { _id: new ObjectId(userId) },
+          { $push: { trophies: { $each: newTrophies } } }
       );
-      return res.status(200).json({ message: `Trophées gagnés : ${newTrophies.join(", ")}` });
-    }
 
-    // Si aucun nouveau trophée n'est gagné
-    res.status(200).json({ message: "Aucun nouveau trophée gagné ou déjà acquis" });
+      // Formater le message avec le nom et la description des trophées gagnés
+      const trophyMessages = [];
 
+      // Ajoutez les messages pour les trophées de victoires
+      winTrophies.forEach(trophy => {
+          if (newTrophies.includes(trophy.id)) {
+              trophyMessages.push(`🏆 Trophée gagné : ${trophy.name}`);
+          }
+      });
+
+      // Ajoutez les messages pour les trophées de matchs joués
+      matchTrophies.forEach(trophy => {
+          if (newTrophies.includes(trophy.id)) {
+              trophyMessages.push(`🏆 Trophée gagné : ${trophy.name}`);
+          }
+      });
+
+      // Ajoutez le message pour le trophée de 3 victoires consécutives
+      if (newTrophies.includes("serie-3-victoires")) {
+          trophyMessages.push("🏆 Trophée gagné : Série de 3 victoires");
+      }
+
+      console.log("New Trophies Earned:", newTrophies);
+      console.log("Trophy Messages:", trophyMessages.join('\n'));
+
+      return res.status(200).json({ message: `\n${trophyMessages.join('\n')}` });
+  }
+
+  // Si aucun nouveau trophée n'est gagné, ne pas envoyer de notification
+  return res.status(204).json();
   } catch (error) {
     console.error("Erreur lors de la vérification des trophées:", error);
     res.status(500).json({ message: "Erreur interne du serveur." });
   }
 });
+
+
 
 
 
