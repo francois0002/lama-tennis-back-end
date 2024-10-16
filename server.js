@@ -629,26 +629,90 @@ app.get("/trophies/check/:userId", async (req, res) => {
       ]
     }).toArray();
 
-    // Vérifier si l'utilisateur a gagné au moins 1 match
+    // Calculer le nombre de victoires de l'utilisateur
     const wins = matchesPlayed.filter(match => match.winner_id.toString() === userId).length;
 
-    // Vérifier si l'utilisateur a déjà le trophée
+    // Calculer le nombre de matchs joués
+    const totalMatchesPlayed = matchesPlayed.length;
+
+    // Récupérer les informations de l'utilisateur et ses trophées
     const user = await db.collection("users").findOne({ _id: new ObjectId(userId) });
 
-    if (wins >= 1 && user && !user.trophies.includes("Gagner 1 match")) {
-      // Si l'utilisateur a gagné au moins 1 match et n'a pas le trophée, on met à jour le tableau des trophées
-      await db.collection("users").updateOne(
-        { _id: new ObjectId(userId) },
-        { $push: { trophies: "Gagner 1 match" } }
-      );
-
-      return res.status(200).json({ message: "Trophée gagné : Gagner 1 match" });
+    if (!user) {
+      return res.status(404).json({ message: "Utilisateur non trouvé" });
     }
 
-    res.status(200).json({ message: "Trophée non gagné ou déjà acquis" });
+    // Liste des trophées de victoires
+    const winTrophies = [
+      { id: "1-victoire", name: "Soldat d'élite", threshold: 1 },
+      { id: "10-victoires", name: "Caporal en chef", threshold: 10 },
+      { id: "25-victoires", name: "Sergent Major", threshold: 25 },
+      { id: "50-victoires", name: "Adjudant du régiment", threshold: 50 },
+      { id: "75-victoires", name: "Capitaine d'escadron", threshold: 75 },
+      { id: "100-victoires", name: "Colonel des armées", threshold: 100 }
+    ];
+
+    // Liste des trophées pour les matchs joués
+    const matchTrophies = [
+      { id: "1-match", name: "Un petit pas de lama", threshold: 1 },
+      { id: "10-matchs", name: "Le lamastico", threshold: 10 },
+      { id: "25-matchs", name: "Le lamagique", threshold: 25 },
+      { id: "50-matchs", name: "Lamazing !", threshold: 50 },
+      { id: "75-matchs", name: "C'est un lamarathon", threshold: 75 },
+      { id: "100-matchs", name: "C'est un lamassacre", threshold: 100 }
+    ];
+
+    // Initialiser un tableau pour stocker les nouveaux trophées à ajouter
+    const newTrophies = [];
+
+    // Vérifier chaque trophée de victoire
+    winTrophies.forEach(trophy => {
+      if (wins >= trophy.threshold && !user.trophies.includes(trophy.id)) {
+        newTrophies.push(trophy.id);
+      }
+    });
+
+    // Vérifier chaque trophée de matchs joués
+    matchTrophies.forEach(trophy => {
+      if (totalMatchesPlayed >= trophy.threshold && !user.trophies.includes(trophy.id)) {
+        newTrophies.push(trophy.id);
+      }
+    });
+
+    // Si l'utilisateur a gagné de nouveaux trophées, les ajouter
+    if (newTrophies.length > 0) {
+      await db.collection("users").updateOne(
+        { _id: new ObjectId(userId) },
+        { $push: { trophies: { $each: newTrophies } } }
+      );
+      return res.status(200).json({ message: `Trophées gagnés : ${newTrophies.join(", ")}` });
+    }
+
+    // Si aucun nouveau trophée n'est gagné
+    res.status(200).json({ message: "Aucun nouveau trophée gagné ou déjà acquis" });
+
   } catch (error) {
-    console.error("Erreur lors de la vérification du trophée:", error);
+    console.error("Erreur lors de la vérification des trophées:", error);
     res.status(500).json({ message: "Erreur interne du serveur." });
+  }
+});
+
+
+
+// Route pour récupérer tous les trophées
+app.get("/trophies", async (req, res) => {
+  try {
+    const trophiesCollection = db.collection("trophies");
+    const trophies = await trophiesCollection.find({}).toArray(); // Récupère tous les trophées
+
+    if (!trophies || trophies.length === 0) {
+      return res.status(404).send({ message: "Aucun trophée trouvé." });
+    }
+
+    res.status(200).json(trophies);
+  } catch (err) {
+    console.error("Erreur lors de la récupération des trophées:", err.message);
+    res.status(500).json({ error: "Erreur lors de la récupération des trophées" });
   }
 });
 
