@@ -705,26 +705,26 @@ app.get("/trophies/check/:userId", async (req, res) => {
       // Ajoutez les messages pour les trophées de victoires
       winTrophies.forEach(trophy => {
           if (newTrophies.includes(trophy.id)) {
-              trophyMessages.push(`🏆 Trophée gagné : ${trophy.name}`);
+              trophyMessages.push(`🏆 Haut-fait obtenu : ${trophy.name}\n`);
           }
       });
 
       // Ajoutez les messages pour les trophées de matchs joués
       matchTrophies.forEach(trophy => {
           if (newTrophies.includes(trophy.id)) {
-              trophyMessages.push(`🏆 Trophée gagné : ${trophy.name}`);
+              trophyMessages.push(`🏆 Haut-fait obtenu: ${trophy.name}\n`);
           }
       });
 
       // Ajoutez le message pour le trophée de 3 victoires consécutives
       if (newTrophies.includes("serie-3-victoires")) {
-          trophyMessages.push("🏆 Trophée gagné : Série de 3 victoires");
+          trophyMessages.push("🏆 Trophée gagné : Série de 3 victoires\n");
       }
 
       console.log("New Trophies Earned:", newTrophies);
       console.log("Trophy Messages:", trophyMessages.join('\n'));
 
-      return res.status(200).json({ message: `\n${trophyMessages.join('\n')}` });
+      return res.status(200).json({ message: `${trophyMessages.join('\n')}` });
   }
 
   // Si aucun nouveau trophée n'est gagné, ne pas envoyer de notification
